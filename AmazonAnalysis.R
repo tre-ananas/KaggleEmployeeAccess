@@ -115,24 +115,72 @@ twoway_patch
 
 #################################################################
 #################################################################
-# DATA ENGINEERING                    ###########################
+# LOGISTIC REGRESSION                 ###########################
 #################################################################
 #################################################################
+
+# DATA CLEANING -------------------------------------------------
 
 # Load Libraries
 library(tidymodels)
 
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
 # Create Recipe
-employee_recipe <- recipe(ACTION ~ ., data = employee_train) %>%
+logr_rec <- recipe(ACTION ~ ., data = employee_train) %>%
   # Vroom loads in data w numbers as numeric; turn all of these features into factors
   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
   # Combine categories that occur less than 1% of the time into an "other" category
   step_other(all_nominal_predictors(), threshold = .01) %>%
-    # Dummy variable encoding for all nominal predictors
+  # Dummy variable encoding for all nominal predictors
   step_dummy(all_nominal_predictors())
 
+
 # Prep, Bake, and View Recipe
-prep <- prep(employee_recipe)
-bake(prep, employee_train) %>%
+logr_prep <- prep(logr_rec)
+bake(logr_prep, employee_train) %>%
   slice(1:10)
 
+# MODELING ------------------------------------------------------
+
+# Create logistic regression model
+logr_mod <- logistic_reg() %>%
+  set_engine("glm")
+
+# Create and fit logistic regression workflow
+logr_wf <- workflow() %>%
+  add_recipe(logr_rec) %>%
+  add_model(logr_mod) %>%
+  fit(data = employee_train)
+
+# Predict with classification cutoff = .70
+logr_preds <- predict(logr_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  mutate(ifelse(.pred_1 > .83, 1, 0)) %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = names(.)[4]) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+# vroom_write(x=logr_preds, file="logr_preds.csv", delim = ",")
+
+# Predict without a classification cutoff--just the raw probabilities
+logr_preds_no_c <- predict(logr_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+# vroom_write(x=logr_preds_no_c, file="logr_preds_no_c.csv", delim = ",")
+
+#################################################################
+#################################################################
+# MODEL 2                             ###########################
+#################################################################
+#################################################################
