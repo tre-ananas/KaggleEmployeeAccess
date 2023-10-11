@@ -181,6 +181,78 @@ logr_preds_no_c <- predict(logr_wf,
 
 #################################################################
 #################################################################
-# MODEL 2                             ###########################
+# PENALIZED LOGISTIC REGRESSION       ###########################
 #################################################################
 #################################################################
+
+# DATA CLEANING -------------------------------------------------
+
+# Load Libraries
+library(tidymodels)
+library(embed)
+library(lme4)
+
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
+# Create Recipe
+plogr_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+  # Vroom loads in data w numbers as numeric; turn all of these features into factors
+  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+  # Combine categories that occur less than .1% of the time into an "other" category
+  step_other(all_nominal_predictors(), threshold = .001) %>%
+  # Target encoding for all nominal predictors
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
+
+
+# Prep, Bake, and View Recipe
+plogr_prep <- prep(plogr_rec)
+bake(plogr_prep, employee_train) %>%
+  slice(1:10)
+
+# MODELING ------------------------------------------------------
+
+# Create penalized logistic regression model
+plogr_mod <- logistic_reg(mixture = tune(),
+                          penalty = tune()) %>%
+  set_engine("glmnet")
+
+# Create logistic regression workflow
+plogr_wf <- workflow() %>%
+  add_recipe(plogr_rec) %>%
+  add_model(plogr_mod)
+
+# Grid of values to tune over
+plogr_tg <- grid_regular(penalty(),
+                         mixture(),
+                         levels = 5)
+
+# Split data for cross-validation (CV)
+plogr_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+plogr_cv_results <- plogr_wf %>%
+  tune_grid(resamples = plogr_folds,
+            grid = plogr_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+plogr_best_tune <- plogr_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+plogr_final_wf <- plogr_wf %>%
+  finalize_workflow(plogr_best_tune) %>%
+  fit(data = employee_train)
+
+# Predict without a classification cutoff--just the raw probabilities
+plogr_preds_no_c <- predict(plogr_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=plogr_preds_no_c, file="plogr_preds_no_c.csv", delim = ",")
