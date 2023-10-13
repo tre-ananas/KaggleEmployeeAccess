@@ -204,7 +204,7 @@ logr_preds_no_c <- predict(logr_wf,
   select(Id, Action)
 
 # Create a CSV with the predictions
-vroom_write(x=logr_preds_no_c_server, file="logr_preds_no_c.csv", delim = ",")
+vroom_write(x=logr_preds_no_c, file="logr_preds_no_c.csv", delim = ",")
 
 #################################################################
 #################################################################
@@ -231,7 +231,8 @@ plogr_rec <- recipe(ACTION ~ ., data = employee_train) %>%
   # Vroom loads in data w numbers as numeric; turn all of these features into factors
   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
   # Combine categories that occur less than .1% of the time into an "other" category
-  step_other(all_nominal_predictors(), threshold = .001) %>%
+  # Remove because penalized logr can handle categories w few observations
+  # step_other(all_nominal_predictors(), threshold = .001) %>%
   # Target encoding for all nominal predictors
   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
 
@@ -286,4 +287,4 @@ plogr_preds_no_c <- predict(plogr_final_wf,
   select(Id, Action)
 
 # Create a CSV with the predictions
-vroom_write(x=plogr_preds_no_c_server, file="plogr_preds_no_c.csv", delim = ",")
+vroom_write(x=plogr_preds_no_c, file="plogr_preds_no_c_no_step_other.csv", delim = ",")
