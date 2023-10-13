@@ -124,6 +124,10 @@ twoway_patch
 # Load Libraries
 library(tidymodels)
 
+# Re-load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
+
 # Change ACTION to factor before the recipe, as it isn't included in the test data set
 employee_train$ACTION <- as.factor(employee_train$ACTION)
 
@@ -177,7 +181,7 @@ logr_preds_no_c <- predict(logr_wf,
   select(Id, Action)
 
 # Create a CSV with the predictions
-# vroom_write(x=logr_preds_no_c, file="logr_preds_no_c.csv", delim = ",")
+vroom_write(x=logr_preds_no_c, file="logr_preds_no_c.csv", delim = ",")
 
 #################################################################
 #################################################################
@@ -191,6 +195,10 @@ logr_preds_no_c <- predict(logr_wf,
 library(tidymodels)
 library(embed)
 library(lme4)
+
+# Re-load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
 
 # Change ACTION to factor before the recipe, as it isn't included in the test data set
 employee_train$ACTION <- as.factor(employee_train$ACTION)
