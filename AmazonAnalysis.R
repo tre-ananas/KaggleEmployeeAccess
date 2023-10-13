@@ -8,29 +8,6 @@
 
 #################################################################
 #################################################################
-# Install Packages                    ###########################
-#################################################################
-#################################################################
-
-# Install packages when running on Stats server
-install.packages("vroom")
-install.packages("DataExplorer")
-install.packages("patchwork")
-install.packages("tidyverse")
-install.packages("inspectdf")
-install.packages("ggmosaic")
-install.packages("tidymodels")
-install.packages("embed")
-install.packages("lme4")
-
-#################################################################
-#################################################################
-#################################################################
-#################################################################
-#################################################################
-
-#################################################################
-#################################################################
 # LOAD DATA                           ###########################
 #################################################################
 #################################################################
@@ -51,82 +28,82 @@ employee_test <- vroom("test.csv")
 #################################################################
 #################################################################
 
-# Load Libraries
-library(DataExplorer)
-library(patchwork)
-library(tidyverse)
-library(inspectdf)
-library(ggmosaic)
-
-# Create an EDA dataset and correct Vroom's mistake and make numeric data into factors
-fact_employee_train_eda <- employee_train
-cols <- c("ACTION",
-          "RESOURCE", 
-          "MGR_ID", 
-          "ROLE_ROLLUP_1", 
-          "ROLE_ROLLUP_2", 
-          "ROLE_DEPTNAME", 
-          "ROLE_TITLE",
-          "ROLE_FAMILY_DESC",
-          "ROLE_FAMILY",
-          "ROLE_CODE")
-fact_employee_train_eda[cols] <- lapply(fact_employee_train_eda[cols], 
-                                   factor)
-
-# Examine Factor Variables:
-  # cnt = # unique variables
-  # common = most common level
-  # common_pcnt = percentage representing most common level
-  # levels = list of the proportions of each level of the variable
-factor_exploration_plot <- fact_employee_train_eda %>%
-  inspect_cat() %>%
-  show_plot()
-factor_exploration_plot
-
-fact_employee_train_eda %>%
-  inspect_cat()
-
-# Create an EDA dataset making every feature into a factor except ACTION, which remains numeric
-num_employee_train_eda <- employee_train
-cols <- c("RESOURCE", 
-          "MGR_ID", 
-          "ROLE_ROLLUP_1", 
-          "ROLE_ROLLUP_2", 
-          "ROLE_DEPTNAME", 
-          "ROLE_TITLE",
-          "ROLE_FAMILY_DESC",
-          "ROLE_FAMILY",
-          "ROLE_CODE")
-num_employee_train_eda[cols] <- lapply(num_employee_train_eda[cols], 
-                                   factor)
-
-# Identify the top 30 most popular RESOURCEs
-resource_data <- num_employee_train_eda %>%
-  group_by(RESOURCE) %>%
-  summarize(mean = mean(ACTION),
-            n = n()) %>%
-  slice_max(order_by = n,
-            n = 30)
-resource_data <- resource_data["RESOURCE"]
-
-# Subset the EDA dataset to the 30 most popular RESOURCEs
-num_employee_train_eda <- num_employee_train_eda %>%
-  filter(RESOURCE %in% resource_data$RESOURCE)
-
-# Bar chart of the top 30 most popular RESOURCEs' ACTION results
-action_resources_barcharts <- ggplot(data = num_employee_train_eda,
-       aes(x = ACTION)) +
-  geom_bar() +
-  ggtitle("ACTION Results for 30 Most Common Products") +
-  xlab("ACTION: 0 and 1, Respectively") +
-  ylab("Count of Each ACTION Result") +
-  theme(plot.title = element_text(hjust = .5)) +
-  facet_wrap( ~ RESOURCE)
-action_resources_barcharts
-
-# Create a 2-Way Plot of Prominent Plots
-twoway_patch <- (factor_exploration_plot) / (action_resources_barcharts)
-twoway_patch
+# # Load Libraries
+# library(DataExplorer)
+# library(patchwork)
+# library(tidyverse)
+# library(inspectdf)
+# library(ggmosaic)
+# 
+# # Create an EDA dataset and correct Vroom's mistake and make numeric data into factors
+# fact_employee_train_eda <- employee_train
+# cols <- c("ACTION",
+#           "RESOURCE", 
+#           "MGR_ID", 
+#           "ROLE_ROLLUP_1", 
+#           "ROLE_ROLLUP_2", 
+#           "ROLE_DEPTNAME", 
+#           "ROLE_TITLE",
+#           "ROLE_FAMILY_DESC",
+#           "ROLE_FAMILY",
+#           "ROLE_CODE")
+# fact_employee_train_eda[cols] <- lapply(fact_employee_train_eda[cols], 
+#                                    factor)
+# 
+# # Examine Factor Variables:
+#   # cnt = # unique variables
+#   # common = most common level
+#   # common_pcnt = percentage representing most common level
+#   # levels = list of the proportions of each level of the variable
+# factor_exploration_plot <- fact_employee_train_eda %>%
+#   inspect_cat() %>%
+#   show_plot()
+# factor_exploration_plot
+# 
+# fact_employee_train_eda %>%
+#   inspect_cat()
+# 
+# # Create an EDA dataset making every feature into a factor except ACTION, which remains numeric
+# num_employee_train_eda <- employee_train
+# cols <- c("RESOURCE", 
+#           "MGR_ID", 
+#           "ROLE_ROLLUP_1", 
+#           "ROLE_ROLLUP_2", 
+#           "ROLE_DEPTNAME", 
+#           "ROLE_TITLE",
+#           "ROLE_FAMILY_DESC",
+#           "ROLE_FAMILY",
+#           "ROLE_CODE")
+# num_employee_train_eda[cols] <- lapply(num_employee_train_eda[cols], 
+#                                    factor)
+# 
+# # Identify the top 30 most popular RESOURCEs
+# resource_data <- num_employee_train_eda %>%
+#   group_by(RESOURCE) %>%
+#   summarize(mean = mean(ACTION),
+#             n = n()) %>%
+#   slice_max(order_by = n,
+#             n = 30)
+# resource_data <- resource_data["RESOURCE"]
+# 
+# # Subset the EDA dataset to the 30 most popular RESOURCEs
+# num_employee_train_eda <- num_employee_train_eda %>%
+#   filter(RESOURCE %in% resource_data$RESOURCE)
+# 
+# # Bar chart of the top 30 most popular RESOURCEs' ACTION results
+# action_resources_barcharts <- ggplot(data = num_employee_train_eda,
+#        aes(x = ACTION)) +
+#   geom_bar() +
+#   ggtitle("ACTION Results for 30 Most Common Products") +
+#   xlab("ACTION: 0 and 1, Respectively") +
+#   ylab("Count of Each ACTION Result") +
+#   theme(plot.title = element_text(hjust = .5)) +
+#   facet_wrap( ~ RESOURCE)
+# action_resources_barcharts
+# 
+# # Create a 2-Way Plot of Prominent Plots
+# twoway_patch <- (factor_exploration_plot) / (action_resources_barcharts)
+# twoway_patch
   
 # Findings:
   # inspect_cat():
@@ -146,6 +123,7 @@ twoway_patch
 
 # Load Libraries
 library(tidymodels)
+library(tidyverse)
 
 # Re-load Data
 employee_train <- vroom("train.csv")
@@ -216,6 +194,7 @@ vroom_write(x=logr_preds_no_c, file="logr_preds_no_c.csv", delim = ",")
 
 # Load Libraries
 library(tidymodels)
+library(tidyverse)
 library(embed)
 library(lme4)
 
