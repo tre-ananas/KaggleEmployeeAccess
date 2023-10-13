@@ -8,6 +8,29 @@
 
 #################################################################
 #################################################################
+# Install Packages                    ###########################
+#################################################################
+#################################################################
+
+# Install packages when running on Stats server
+install.packages("vroom")
+install.packages("DataExplorer")
+install.packages("patchwork")
+install.packages("tidyverse")
+install.packages("inspectdf")
+install.packages("ggmosaic")
+install.packages("tidymodels")
+install.packages("embed")
+install.packages("lme4")
+
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+
+#################################################################
+#################################################################
 # LOAD DATA                           ###########################
 #################################################################
 #################################################################
@@ -181,7 +204,7 @@ logr_preds_no_c <- predict(logr_wf,
   select(Id, Action)
 
 # Create a CSV with the predictions
-vroom_write(x=logr_preds_no_c, file="logr_preds_no_c.csv", delim = ",")
+vroom_write(x=logr_preds_no_c_server, file="logr_preds_no_c.csv", delim = ",")
 
 #################################################################
 #################################################################
@@ -263,4 +286,4 @@ plogr_preds_no_c <- predict(plogr_final_wf,
   select(Id, Action)
 
 # Create a CSV with the predictions
-vroom_write(x=plogr_preds_no_c, file="plogr_preds_no_c.csv", delim = ",")
+vroom_write(x=plogr_preds_no_c_server, file="plogr_preds_no_c.csv", delim = ",")
