@@ -8,7 +8,7 @@
 
 #################################################################
 #################################################################
-# LOAD DATA                           ###########################
+# LOAD DATA AND PACKAGES              ###########################
 #################################################################
 #################################################################
 
@@ -16,7 +16,22 @@
 # https://www.kaggle.com/competitions/amazon-employee-access-challenge/data
 
 # Load Libraries
-library(vroom)
+library(doParallel) # Parallel Computing
+library(vroom) # Loading data
+library(DataExplorer) # EDA
+library(patchwork) # EDA
+library(inspectdf) # EDA
+library(ggmosaic) # EDA
+library(tidyverse) # General Use
+library(tidymodels) # General Modeling
+library(embed) # plogr modeling
+library(lme4) # plogr modeling
+
+#############################
+# Start run in parallel
+cl <- makePSOCKcluster(3)
+registerDoParallel(cl)
+#############################
 
 # Load Data
 employee_train <- vroom("train.csv")
@@ -28,13 +43,13 @@ employee_test <- vroom("test.csv")
 #################################################################
 #################################################################
 
-# # Load Libraries
-# library(DataExplorer)
-# library(patchwork)
-# library(tidyverse)
-# library(inspectdf)
-# library(ggmosaic)
-# 
+# Load Libraries
+# library(DataExplorer) # EDA
+# library(patchwork) # EDA
+# library(inspectdf) # EDA
+# library(ggmosaic) # EDA
+# library(tidyverse) # General Use
+
 # # Create an EDA dataset and correct Vroom's mistake and make numeric data into factors
 # fact_employee_train_eda <- employee_train
 # cols <- c("ACTION",
@@ -122,8 +137,8 @@ employee_test <- vroom("test.csv")
 # DATA CLEANING -------------------------------------------------
 
 # Load Libraries
-library(tidymodels)
-library(tidyverse)
+# library(tidymodels)
+# library(tidyverse)
 
 # Re-load Data
 employee_train <- vroom("train.csv")
@@ -159,6 +174,8 @@ logr_wf <- workflow() %>%
   add_model(logr_mod) %>%
   fit(data = employee_train)
 
+# PREDICTIONS ---------------------------------------------------
+
 # Predict with classification cutoff = .70
 logr_preds <- predict(logr_wf,
                      new_data = employee_test,
@@ -193,10 +210,10 @@ vroom_write(x=logr_preds_no_c, file="logr_preds_no_c.csv", delim = ",")
 # DATA CLEANING -------------------------------------------------
 
 # Load Libraries
-library(tidymodels)
-library(tidyverse)
-library(embed)
-library(lme4)
+# library(tidymodels)
+# library(tidyverse)
+# library(embed)
+# library(lme4)
 
 # Re-load Data
 employee_train <- vroom("train.csv")
@@ -256,6 +273,8 @@ plogr_final_wf <- plogr_wf %>%
   finalize_workflow(plogr_best_tune) %>%
   fit(data = employee_train)
 
+# PREDICTIONS ---------------------------------------------------
+
 # Predict without a classification cutoff--just the raw probabilities
 plogr_preds_no_c <- predict(plogr_final_wf,
                      new_data = employee_test,
@@ -267,3 +286,100 @@ plogr_preds_no_c <- predict(plogr_final_wf,
 
 # Create a CSV with the predictions
 vroom_write(x=plogr_preds_no_c, file="plogr_preds_no_c_no_step_other.csv", delim = ",")
+
+#################################################################
+#################################################################
+# CLASSIFICATION FOREST               ###########################
+#################################################################
+#################################################################
+
+# DATA CLEANING -------------------------------------------------
+
+# Load Libraries
+# library(tidymodels)
+# library(tidyverse)
+# library(embed)
+# library(lme4)
+
+# Re-load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
+
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
+# Create Recipe
+ctree_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+  # Vroom loads in data w numbers as numeric; turn all of these features into factors
+  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+  # Combine categories that occur less than .1% of the time into an "other" category
+  # Removed to see if classification trees can handle smaller data groups
+  # step_other(all_nominal_predictors(), threshold = .001) %>%
+  # Target encoding for all nominal predictors
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
+
+
+# Prep, Bake, and View Recipe
+ctree_prep <- prep(ctree_rec)
+bake(ctree_prep, employee_train) %>%
+  slice(1:10)
+
+# MODELING ------------------------------------------------------
+
+# Create classification forest model
+ctree_mod <- rand_forest(mtry = tune(),
+                         min_n = tune(),
+                         trees = 500) %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
+
+# Create classification forest workflow
+ctree_wf <- workflow() %>%
+  add_recipe(ctree_rec) %>%
+  add_model(ctree_mod)
+
+# Grid of values to tune over
+ctree_tg <- grid_regular(mtry(range = c(1, 9)),
+                         min_n(),
+                         levels = 5)
+
+# Split data for cross-validation (CV)
+ctree_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+ctree_cv_results <- ctree_wf %>%
+  tune_grid(resamples = ctree_folds,
+            grid = ctree_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+ctree_best_tune <- ctree_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+ctree_final_wf <- ctree_wf %>%
+  finalize_workflow(ctree_best_tune) %>%
+  fit(data = employee_train)
+
+# PREDICTIONS ---------------------------------------------------
+
+# Predict without a classification cutoff--just the raw probabilities
+ctree_preds <- predict(ctree_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=ctree_preds, file="ctree_preds.csv", delim = ",")
+
+
+
+
+
+#############################
+# End run in parallel
+stopCluster(cl)
+#############################
