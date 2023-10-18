@@ -26,11 +26,13 @@ library(tidyverse) # General Use
 library(tidymodels) # General Modeling
 library(embed) # plogr modeling
 library(lme4) # plogr modeling
+library(naivebayes) # Naive Bayes modeling
+library(discrim) # Naive Bayes modeling
 
 #############################
 # Start run in parallel
-cl <- makePSOCKcluster(3)
-registerDoParallel(cl)
+# cl <- makePSOCKcluster(3)
+# registerDoParallel(cl)
 #############################
 
 # Load Data
@@ -375,11 +377,95 @@ ctree_preds <- predict(ctree_final_wf,
 # Create a CSV with the predictions
 vroom_write(x=ctree_preds, file="ctree_preds.csv", delim = ",")
 
+#################################################################
+#################################################################
+# NAIVE BAYES                         ###########################
+#################################################################
+#################################################################
 
+# DATA CLEANING -------------------------------------------------
+
+# Load Libraries
+# library(tidymodels)
+# library(tidyverse)
+# library(naivebayes)
+# library(discrim)
+
+# Re-load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
+
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
+# Create Recipe
+nb_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+  # Vroom loads in data w numbers as numeric; turn all of these features into factors
+  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+  # Combine categories that occur less than .1% of the time into an "other" category
+  step_other(all_nominal_predictors(), threshold = .001) %>%
+  # Target encoding for all nominal predictors
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
+
+
+# Prep, Bake, and View Recipe
+nb_prep <- prep(nb_rec)
+bake(nb_prep, employee_train) %>%
+  slice(1:10)
+
+# MODELING ------------------------------------------------------
+
+# Create Naive Bayes model
+nb_mod <- naive_Bayes(Laplace = tune(),
+                      smoothness = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("naivebayes")
+
+# Create Naive Bayes workflow
+nb_wf <- workflow() %>%
+  add_recipe(nb_rec) %>%
+  add_model(nb_mod)
+
+# Grid of values to tune over
+nb_tg <- grid_regular(Laplace(),
+                      smoothness(),
+                      levels = 10)
+
+# Split data for cross-validation (CV)
+nb_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+nb_cv_results <- nb_wf %>%
+  tune_grid(resamples = nb_folds,
+            grid = nb_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+nb_best_tune <- nb_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+nb_final_wf <- nb_wf %>%
+  finalize_workflow(nb_best_tune) %>%
+  fit(data = employee_train)
+
+# PREDICTIONS ---------------------------------------------------
+
+# Make predictions
+nb_preds <- predict(nb_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=nb_preds, file="nb_preds.csv", delim = ",")
 
 
 
 #############################
 # End run in parallel
-stopCluster(cl)
+# stopCluster(cl)
 #############################
