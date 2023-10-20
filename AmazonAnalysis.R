@@ -28,6 +28,7 @@ library(embed) # plogr modeling
 library(lme4) # plogr modeling
 library(naivebayes) # Naive Bayes modeling
 library(discrim) # Naive Bayes modeling
+library(kknn) # K nearest neighbors
 
 #############################
 # Start run in parallel
@@ -462,6 +463,92 @@ nb_preds <- predict(nb_final_wf,
 
 # Create a CSV with the predictions
 vroom_write(x=nb_preds, file="nb_preds.csv", delim = ",")
+
+#################################################################
+#################################################################
+# K Nearest Neighbors                 ###########################
+#################################################################
+#################################################################
+
+# DATA CLEANING -------------------------------------------------
+
+# Load Libraries
+# library(kknn)
+
+# Re-load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
+
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
+# Create Recipe
+knn_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+  # Vroom loads in data w numbers as numeric; turn all of these features into factors
+  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+  # Combine categories that occur less than .1% of the time into an "other" category
+  step_other(all_nominal_predictors(), threshold = .001) %>%
+  # Target encoding for all nominal predictors
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+  # Normalize Numeric Predictors
+  step_normalize(all_numeric_predictors())
+
+
+# Prep, Bake, and View Recipe
+knn_prep <- prep(knn_rec)
+bake(knn_prep, employee_train) %>%
+  slice(1:10)
+
+# MODELING ------------------------------------------------------
+
+# Create K Nearest Neighbors model
+knn_mod <- nearest_neighbor(neighbors = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("kknn")
+
+# Create KNN workflow
+knn_wf <- workflow() %>%
+  add_recipe(knn_rec) %>%
+  add_model(knn_mod)
+
+# Grid of values to tune over
+knn_tg <- grid_regular(neighbors(),
+                      levels = 10)
+
+# Split data for cross-validation (CV)
+knn_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+knn_cv_results <- knn_wf %>%
+  tune_grid(resamples = knn_folds,
+            grid = knn_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+knn_best_tune <- knn_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+knn_final_wf <- knn_wf %>%
+  finalize_workflow(knn_best_tune) %>%
+  fit(data = employee_train)
+
+# PREDICTIONS ---------------------------------------------------
+
+# Make predictions
+knn_preds <- predict(knn_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=knn_preds, file="knn_preds.csv", delim = ",")
+
+
+
 
 
 
