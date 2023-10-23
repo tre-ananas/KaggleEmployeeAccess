@@ -749,6 +749,7 @@
 # DATA CLEANING -------------------------------------------------
 
 # Load Libraries
+library(vroom)
 library(tidymodels)
 library(tidyverse)
 library(embed)
