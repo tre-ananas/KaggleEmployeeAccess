@@ -51,59 +51,13 @@ Type 'q()' to quit R.
 > 
 > # Load Libraries
 > # library(doParallel) # Parallel Computing
-> library(vroom) # Loading data
+> # library(vroom) # Loading data
 > # library(DataExplorer) # EDA
 > # library(patchwork) # EDA
 > # library(inspectdf) # EDA
 > # library(ggmosaic) # EDA
-> library(tidyverse) # General Use
-── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.3     ✔ readr     2.1.4
-✔ forcats   1.0.0     ✔ stringr   1.5.0
-✔ ggplot2   3.4.3     ✔ tibble    3.2.1
-✔ lubridate 1.9.3     ✔ tidyr     1.3.0
-✔ purrr     1.0.2     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ readr::col_character()   masks vroom::col_character()
-✖ readr::col_date()        masks vroom::col_date()
-✖ readr::col_datetime()    masks vroom::col_datetime()
-✖ readr::col_double()      masks vroom::col_double()
-✖ readr::col_factor()      masks vroom::col_factor()
-✖ readr::col_guess()       masks vroom::col_guess()
-✖ readr::col_integer()     masks vroom::col_integer()
-✖ readr::col_logical()     masks vroom::col_logical()
-✖ readr::col_number()      masks vroom::col_number()
-✖ readr::col_skip()        masks vroom::col_skip()
-✖ readr::col_time()        masks vroom::col_time()
-✖ readr::cols()            masks vroom::cols()
-✖ readr::date_names_lang() masks vroom::date_names_lang()
-✖ readr::default_locale()  masks vroom::default_locale()
-✖ dplyr::filter()          masks stats::filter()
-✖ readr::fwf_cols()        masks vroom::fwf_cols()
-✖ readr::fwf_empty()       masks vroom::fwf_empty()
-✖ readr::fwf_positions()   masks vroom::fwf_positions()
-✖ readr::fwf_widths()      masks vroom::fwf_widths()
-✖ dplyr::lag()             masks stats::lag()
-✖ readr::locale()          masks vroom::locale()
-✖ readr::output_column()   masks vroom::output_column()
-✖ readr::problems()        masks vroom::problems()
-ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
-> library(tidymodels) # General Modeling
-── Attaching packages ────────────────────────────────────── tidymodels 1.1.1 ──
-✔ broom        1.0.5     ✔ rsample      1.2.0
-✔ dials        1.2.0     ✔ tune         1.1.2
-✔ infer        1.0.5     ✔ workflows    1.1.3
-✔ modeldata    1.2.0     ✔ workflowsets 1.0.1
-✔ parsnip      1.1.1     ✔ yardstick    1.2.0
-✔ recipes      1.0.8     
-── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
-✖ scales::discard() masks purrr::discard()
-✖ dplyr::filter()   masks stats::filter()
-✖ recipes::fixed()  masks stringr::fixed()
-✖ dplyr::lag()      masks stats::lag()
-✖ yardstick::spec() masks readr::spec(), vroom::spec()
-✖ recipes::step()   masks stats::step()
-• Dig deeper into tidy modeling with R at https://www.tmwr.org
+> # library(tidyverse) # General Use
+> # library(tidymodels) # General Modeling
 > # library(embed) # plogr modeling
 > # library(lme4) # plogr modeling
 > # library(naivebayes) # Naive Bayes modeling
@@ -814,39 +768,46 @@ Type 'q()' to quit R.
 > # DATA CLEANING -------------------------------------------------
 > 
 > # Load Libraries
-> # library(tidymodels)
-> # library(tidyverse)
-> # library(embed)
-> # library(lme4)
+> library(tidymodels)
+── Attaching packages ────────────────────────────────────── tidymodels 1.1.1 ──
+✔ broom        1.0.5     ✔ recipes      1.0.8
+✔ dials        1.2.0     ✔ rsample      1.2.0
+✔ dplyr        1.1.3     ✔ tibble       3.2.1
+✔ ggplot2      3.4.3     ✔ tidyr        1.3.0
+✔ infer        1.0.5     ✔ tune         1.1.2
+✔ modeldata    1.2.0     ✔ workflows    1.1.3
+✔ parsnip      1.1.1     ✔ workflowsets 1.0.1
+✔ purrr        1.0.2     ✔ yardstick    1.2.0
+── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
+✖ purrr::discard() masks scales::discard()
+✖ dplyr::filter()  masks stats::filter()
+✖ dplyr::lag()     masks stats::lag()
+✖ recipes::step()  masks stats::step()
+• Search for functions across packages at https://www.tidymodels.org/find/
+> library(tidyverse)
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ forcats   1.0.0     ✔ readr     2.1.4
+✔ lubridate 1.9.3     ✔ stringr   1.5.0
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ readr::col_factor() masks scales::col_factor()
+✖ purrr::discard()    masks scales::discard()
+✖ dplyr::filter()     masks stats::filter()
+✖ stringr::fixed()    masks recipes::fixed()
+✖ dplyr::lag()        masks stats::lag()
+✖ readr::spec()       masks yardstick::spec()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(embed)
+> library(lme4)
+Loading required package: Matrix
+
+Attaching package: ‘Matrix’
+
+The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack
+
 > 
 > # Re-load Data
 > employee_train <- vroom("train.csv")
-Rows: 32769 Columns: 10
-── Column specification ────────────────────────────────────────────────────────
-Delimiter: ","
-dbl (10): ACTION, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTN...
-
-ℹ Use `spec()` to retrieve the full column specification for this data.
-ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-> employee_test <- vroom("test.csv")
-Rows: 58921 Columns: 10
-── Column specification ────────────────────────────────────────────────────────
-Delimiter: ","
-dbl (10): id, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTNAME,...
-
-ℹ Use `spec()` to retrieve the full column specification for this data.
-ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-> 
-> # Change ACTION to factor before the recipe, as it isn't included in the test data set
-> employee_train$ACTION <- as.factor(employee_train$ACTION)
-> 
-> # Create Recipe
-> ctree_rec <- recipe(ACTION ~ ., data = employee_train) %>%
-+   # Vroom loads in data w numbers as numeric; turn all of these features into factors
-+   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
-+   # Target encoding for all nominal predictors
-+   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
-Error in step_lencode_mixed(., all_nominal_predictors(), outcome = vars(ACTION)) : 
-  could not find function "step_lencode_mixed"
-Calls: %>%
+Error in vroom("train.csv") : could not find function "vroom"
 Execution halted
