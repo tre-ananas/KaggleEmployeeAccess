@@ -34,13 +34,12 @@ Type 'q()' to quit R.
 > # Data Location and Description
 > # https://www.kaggle.com/competitions/amazon-employee-access-challenge/data
 > 
-> # Load Libraries
-> library(doParallel) # Parallel Computing
-Loading required package: foreach
-Loading required package: iterators
-Loading required package: parallel
-> library(vroom) # Loading data
-> library(DataExplorer) # EDA
-Error in library(DataExplorer) : 
-  there is no package called ‘DataExplorer’
+> # Install Packages (For Use on Remote Server)
+> # install.packages('doParallel')
+> install.packages('vroom')
+Installing package into ‘/usr/local/lib/R/site-library’
+(as ‘lib’ is unspecified)
+Warning in install.packages("vroom") :
+  'lib = "/usr/local/lib/R/site-library"' is not writable
+Error in install.packages("vroom") : unable to install packages
 Execution halted
