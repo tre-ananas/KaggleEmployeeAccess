@@ -15,27 +15,46 @@
 # Data Location and Description
 # https://www.kaggle.com/competitions/amazon-employee-access-challenge/data
 
+# Install Packages (For Use on Remote Server)
+# install.packages('doParallel')
+install.packages('vroom')
+# install.packages('DataExplorer')
+# install.packages('patchwork')
+# install.packages('inspectdf')
+# install.packages('ggmosaic')
+install.packages('tidyverse')
+install.packages('tidymodels')
+# install.packages('embed')
+# install.packages('lme4')
+# install.packages('naivebayes')
+# install.packages('discrim')
+# install.packages('kknn')
+
 # Load Libraries
-library(doParallel) # Parallel Computing
+# library(doParallel) # Parallel Computing
 library(vroom) # Loading data
-library(DataExplorer) # EDA
-library(patchwork) # EDA
-library(inspectdf) # EDA
-library(ggmosaic) # EDA
+# library(DataExplorer) # EDA
+# library(patchwork) # EDA
+# library(inspectdf) # EDA
+# library(ggmosaic) # EDA
 library(tidyverse) # General Use
 library(tidymodels) # General Modeling
-library(embed) # plogr modeling
-library(lme4) # plogr modeling
+# library(embed) # plogr modeling
+# library(lme4) # plogr modeling
 # library(naivebayes) # Naive Bayes modeling
 # library(discrim) # Naive Bayes modeling
 # library(kknn) # K nearest neighbors
-# 
+
+########################################################################
+########################################################################
 # #############################
 # # Start run in parallel
 # # cl <- makePSOCKcluster(3)
 # # registerDoParallel(cl)
 # #############################
-# 
+########################################################################
+########################################################################
+
 # # Load Data
 # employee_train <- vroom("train.csv")
 # employee_test <- vroom("test.csv")
@@ -806,14 +825,11 @@ ctree_preds <- predict(ctree_final_wf,
 vroom_write(x=ctree_preds, file="ctree_preds_15levels.csv", delim = ",")
 
 
-
-
-
-
-
-
-
+########################################################################
+########################################################################
 #############################
 # End run in parallel
 # stopCluster(cl)
 #############################
+########################################################################
+########################################################################
