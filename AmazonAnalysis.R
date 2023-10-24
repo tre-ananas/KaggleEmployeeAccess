@@ -742,7 +742,91 @@
 
 #################################################################
 #################################################################
-# CLASSIFICATION FOREST WITH 15 LEVELS OF CROSS VALIDATION ######
+# CLASSIFICATION FOREST WITH N LEVELS OF CROSS VALIDATION ######
+#################################################################
+#################################################################
+
+# # DATA CLEANING -------------------------------------------------
+# 
+# # Load Libraries
+# library(vroom)
+# library(tidymodels)
+# library(tidyverse)
+# library(embed)
+# library(lme4)
+# 
+# # Re-load Data
+# employee_train <- vroom("train.csv")
+# employee_test <- vroom("test.csv")
+# 
+# # Change ACTION to factor before the recipe, as it isn't included in the test data set
+# employee_train$ACTION <- as.factor(employee_train$ACTION)
+# 
+# # Create Recipe
+# ctree_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+#   # Vroom loads in data w numbers as numeric; turn all of these features into factors
+#   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+#   # Target encoding for all nominal predictors
+#   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
+# 
+# # Prep, Bake, and View Recipe
+# ctree_prep <- prep(ctree_rec)
+# bake(ctree_prep, employee_train)
+# 
+# # MODELING ------------------------------------------------------
+# 
+# # Create classification forest model
+# ctree_mod <- rand_forest(mtry = tune(),
+#                          min_n = tune(),
+#                          trees = 750) %>%
+#   set_engine("ranger") %>%
+#   set_mode("classification")
+# 
+# # Create classification forest workflow
+# ctree_wf <- workflow() %>%
+#   add_recipe(ctree_rec) %>%
+#   add_model(ctree_mod)
+# 
+# # Grid of values to tune over
+# ctree_tg <- grid_regular(mtry(range = c(1, 9)),
+#                          min_n(),
+#                          levels = 15)
+# 
+# # Split data for cross-validation (CV)
+# ctree_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+# 
+# # Run cross-validation
+# ctree_cv_results <- ctree_wf %>%
+#   tune_grid(resamples = ctree_folds,
+#             grid = ctree_tg,
+#             metrics = metric_set(roc_auc))
+# 
+# # Find best tuning parameters
+# ctree_best_tune <- ctree_cv_results %>%
+#   select_best("roc_auc")
+# 
+# # Finalize workflow and fit it
+# ctree_final_wf <- ctree_wf %>%
+#   finalize_workflow(ctree_best_tune) %>%
+#   fit(data = employee_train)
+# 
+# # PREDICTIONS ---------------------------------------------------
+# 
+# # Predict without a classification cutoff--just the raw probabilities
+# ctree_preds <- predict(ctree_final_wf,
+#                      new_data = employee_test,
+#                      type = "prob") %>%
+#   bind_cols(employee_test$id, .) %>%
+#   rename(Id = ...1) %>%
+#   rename(Action = .pred_1) %>%
+#   select(Id, Action)
+# 
+# # Create a CSV with the predictions
+# vroom_write(x=ctree_preds, file="ctree_preds_15levels.csv", delim = ",")
+
+#################################################################
+#################################################################
+# CLASSIFICATION FOREST WITH N LEVELS OF CROSS VALIDATION AND PCR
 #################################################################
 #################################################################
 
@@ -763,57 +847,61 @@ employee_test <- vroom("test.csv")
 employee_train$ACTION <- as.factor(employee_train$ACTION)
 
 # Create Recipe
-ctree_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+ctreepcr_rec <- recipe(ACTION ~ ., data = employee_train) %>%
   # Vroom loads in data w numbers as numeric; turn all of these features into factors
   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
   # Target encoding for all nominal predictors
-  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION))
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+  # Normalize
+  step_normalize(all_predictors()) %>%
+  # PCR w/ Threshold = .9
+  step_pca(all_predictors(), threshold = .9)
 
 # Prep, Bake, and View Recipe
-ctree_prep <- prep(ctree_rec)
-bake(ctree_prep, employee_train)
+ctreepcr_prep <- prep(ctreepcr_rec)
+bake(ctreepcr_prep, employee_train)
 
 # MODELING ------------------------------------------------------
 
 # Create classification forest model
-ctree_mod <- rand_forest(mtry = tune(),
+ctreepcr_mod <- rand_forest(mtry = tune(),
                          min_n = tune(),
-                         trees = 750) %>%
+                         trees = 1000) %>%
   set_engine("ranger") %>%
   set_mode("classification")
 
 # Create classification forest workflow
-ctree_wf <- workflow() %>%
-  add_recipe(ctree_rec) %>%
-  add_model(ctree_mod)
+ctreepcr_wf <- workflow() %>%
+  add_recipe(ctreepcr_rec) %>%
+  add_model(ctreepcr_mod)
 
 # Grid of values to tune over
-ctree_tg <- grid_regular(mtry(range = c(1, 9)),
+ctreepcr_tg <- grid_regular(mtry(range = c(1, 9)),
                          min_n(),
                          levels = 15)
 
 # Split data for cross-validation (CV)
-ctree_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+ctreepcr_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
 
 # Run cross-validation
-ctree_cv_results <- ctree_wf %>%
-  tune_grid(resamples = ctree_folds,
-            grid = ctree_tg,
+ctreepcr_cv_results <- ctreepcr_wf %>%
+  tune_grid(resamples = ctreepcr_folds,
+            grid = ctreepcr_tg,
             metrics = metric_set(roc_auc))
 
 # Find best tuning parameters
-ctree_best_tune <- ctree_cv_results %>%
+ctreepcr_best_tune <- ctreepcr_cv_results %>%
   select_best("roc_auc")
 
 # Finalize workflow and fit it
-ctree_final_wf <- ctree_wf %>%
-  finalize_workflow(ctree_best_tune) %>%
+ctreepcr_final_wf <- ctreepcr_wf %>%
+  finalize_workflow(ctreepcr_best_tune) %>%
   fit(data = employee_train)
 
 # PREDICTIONS ---------------------------------------------------
 
 # Predict without a classification cutoff--just the raw probabilities
-ctree_preds <- predict(ctree_final_wf,
+ctreepcr_preds <- predict(ctreepcr_final_wf,
                      new_data = employee_test,
                      type = "prob") %>%
   bind_cols(employee_test$id, .) %>%
@@ -822,8 +910,7 @@ ctree_preds <- predict(ctree_final_wf,
   select(Id, Action)
 
 # Create a CSV with the predictions
-vroom_write(x=ctree_preds, file="ctree_preds_15levels.csv", delim = ",")
-
+vroom_write(x=ctreepcr_preds, file="ctreepcr_preds_15levels.csv", delim = ",")
 
 ########################################################################
 ########################################################################
