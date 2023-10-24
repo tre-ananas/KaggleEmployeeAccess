@@ -771,15 +771,14 @@ ctree_rec <- recipe(ACTION ~ ., data = employee_train) %>%
 
 # Prep, Bake, and View Recipe
 ctree_prep <- prep(ctree_rec)
-bake(ctree_prep, employee_train) %>%
-  slice(1:10)
+bake(ctree_prep, employee_train)
 
 # MODELING ------------------------------------------------------
 
 # Create classification forest model
 ctree_mod <- rand_forest(mtry = tune(),
                          min_n = tune(),
-                         trees = 1000) %>%
+                         trees = 750) %>%
   set_engine("ranger") %>%
   set_mode("classification")
 
