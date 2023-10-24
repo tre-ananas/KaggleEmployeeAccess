@@ -29,6 +29,7 @@
 # install.packages('naivebayes')
 # install.packages('discrim')
 # install.packages('kknn')
+# install.packages('stacks')
 
 # Load Libraries
 # library(doParallel) # Parallel Computing
@@ -44,6 +45,7 @@
 # library(naivebayes) # Naive Bayes modeling
 # library(discrim) # Naive Bayes modeling
 # library(kknn) # K nearest neighbors
+# library(stacks) # Model Stacking
 
 ########################################################################
 ########################################################################
@@ -829,11 +831,98 @@
 # CLASSIFICATION FOREST WITH N LEVELS OF CROSS VALIDATION AND PCR
 #################################################################
 #################################################################
+# 
+# # DATA CLEANING -------------------------------------------------
+# 
+# # Load Libraries
+# library(vroom)
+# library(tidymodels)
+# library(tidyverse)
+# library(embed)
+# library(lme4)
+# 
+# # Re-load Data
+# employee_train <- vroom("train.csv")
+# employee_test <- vroom("test.csv")
+# 
+# # Change ACTION to factor before the recipe, as it isn't included in the test data set
+# employee_train$ACTION <- as.factor(employee_train$ACTION)
+# 
+# # Create Recipe
+# ctreepcr_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+#   # Vroom loads in data w numbers as numeric; turn all of these features into factors
+#   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+#   # Target encoding for all nominal predictors
+#   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+#   # Normalize
+#   step_normalize(all_predictors()) %>%
+#   # PCR w/ Threshold = .9
+#   step_pca(all_predictors(), threshold = .9)
+# 
+# # Prep, Bake, and View Recipe
+# ctreepcr_prep <- prep(ctreepcr_rec)
+# bake(ctreepcr_prep, employee_train)
+# 
+# # MODELING ------------------------------------------------------
+# 
+# # Create classification forest model
+# ctreepcr_mod <- rand_forest(mtry = tune(),
+#                          min_n = tune(),
+#                          trees = 1000) %>%
+#   set_engine("ranger") %>%
+#   set_mode("classification")
+# 
+# # Create classification forest workflow
+# ctreepcr_wf <- workflow() %>%
+#   add_recipe(ctreepcr_rec) %>%
+#   add_model(ctreepcr_mod)
+# 
+# # Grid of values to tune over
+# ctreepcr_tg <- grid_regular(mtry(range = c(1, 9)),
+#                          min_n(),
+#                          levels = 15)
+# 
+# # Split data for cross-validation (CV)
+# ctreepcr_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+# 
+# # Run cross-validation
+# ctreepcr_cv_results <- ctreepcr_wf %>%
+#   tune_grid(resamples = ctreepcr_folds,
+#             grid = ctreepcr_tg,
+#             metrics = metric_set(roc_auc))
+# 
+# # Find best tuning parameters
+# ctreepcr_best_tune <- ctreepcr_cv_results %>%
+#   select_best("roc_auc")
+# 
+# # Finalize workflow and fit it
+# ctreepcr_final_wf <- ctreepcr_wf %>%
+#   finalize_workflow(ctreepcr_best_tune) %>%
+#   fit(data = employee_train)
+# 
+# # PREDICTIONS ---------------------------------------------------
+# 
+# # Predict without a classification cutoff--just the raw probabilities
+# ctreepcr_preds <- predict(ctreepcr_final_wf,
+#                      new_data = employee_test,
+#                      type = "prob") %>%
+#   bind_cols(employee_test$id, .) %>%
+#   rename(Id = ...1) %>%
+#   rename(Action = .pred_1) %>%
+#   select(Id, Action)
+# 
+# # Create a CSV with the predictions
+# vroom_write(x=ctreepcr_preds, file="ctreepcr_preds_15levels.csv", delim = ",")
+
+#################################################################
+#################################################################
+# PENALIZED LOGISTIC REGRESSION W PCR ###########################
+#################################################################
+#################################################################
 
 # DATA CLEANING -------------------------------------------------
 
 # Load Libraries
-library(vroom)
 library(tidymodels)
 library(tidyverse)
 library(embed)
@@ -847,61 +936,61 @@ employee_test <- vroom("test.csv")
 employee_train$ACTION <- as.factor(employee_train$ACTION)
 
 # Create Recipe
-ctreepcr_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+plogrpcr_rec <- recipe(ACTION ~ ., data = employee_train) %>%
   # Vroom loads in data w numbers as numeric; turn all of these features into factors
   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
   # Target encoding for all nominal predictors
   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
   # Normalize
   step_normalize(all_predictors()) %>%
-  # PCR w/ Threshold = .9
-  step_pca(all_predictors(), threshold = .9)
+  # PCR
+  step_pca(all_predictors(), threshold = .94)
+
 
 # Prep, Bake, and View Recipe
-ctreepcr_prep <- prep(ctreepcr_rec)
-bake(ctreepcr_prep, employee_train)
+plogrpcr_prep <- prep(plogrpcr_rec)
+bake(plogrpcr_prep, employee_train) %>%
+  slice(1:10)
 
 # MODELING ------------------------------------------------------
 
-# Create classification forest model
-ctreepcr_mod <- rand_forest(mtry = tune(),
-                         min_n = tune(),
-                         trees = 1000) %>%
-  set_engine("ranger") %>%
-  set_mode("classification")
+# Create penalized logistic regression model
+plogrpcr_mod <- logistic_reg(mixture = tune(),
+                          penalty = tune()) %>%
+  set_engine("glmnet")
 
-# Create classification forest workflow
-ctreepcr_wf <- workflow() %>%
-  add_recipe(ctreepcr_rec) %>%
-  add_model(ctreepcr_mod)
+# Create logistic regression workflow
+plogrpcr_wf <- workflow() %>%
+  add_recipe(plogrpcr_rec) %>%
+  add_model(plogrpcr_mod)
 
 # Grid of values to tune over
-ctreepcr_tg <- grid_regular(mtry(range = c(1, 9)),
-                         min_n(),
-                         levels = 15)
+plogrpcr_tg <- grid_regular(penalty(),
+                         mixture(),
+                         levels = 5)
 
 # Split data for cross-validation (CV)
-ctreepcr_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+plogrpcr_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
 
 # Run cross-validation
-ctreepcr_cv_results <- ctreepcr_wf %>%
-  tune_grid(resamples = ctreepcr_folds,
-            grid = ctreepcr_tg,
+plogrpcr_cv_results <- plogrpcr_wf %>%
+  tune_grid(resamples = plogrpcr_folds,
+            grid = plogrpcr_tg,
             metrics = metric_set(roc_auc))
 
 # Find best tuning parameters
-ctreepcr_best_tune <- ctreepcr_cv_results %>%
+plogrpcr_best_tune <- plogrpcr_cv_results %>%
   select_best("roc_auc")
 
 # Finalize workflow and fit it
-ctreepcr_final_wf <- ctreepcr_wf %>%
-  finalize_workflow(ctreepcr_best_tune) %>%
+plogrpcr_final_wf <- plogrpcr_wf %>%
+  finalize_workflow(plogrpcr_best_tune) %>%
   fit(data = employee_train)
 
 # PREDICTIONS ---------------------------------------------------
 
 # Predict without a classification cutoff--just the raw probabilities
-ctreepcr_preds <- predict(ctreepcr_final_wf,
+plogrpcr_preds_no_c <- predict(plogrpcr_final_wf,
                      new_data = employee_test,
                      type = "prob") %>%
   bind_cols(employee_test$id, .) %>%
@@ -910,7 +999,132 @@ ctreepcr_preds <- predict(ctreepcr_final_wf,
   select(Id, Action)
 
 # Create a CSV with the predictions
-vroom_write(x=ctreepcr_preds, file="ctreepcr_preds_15levels.csv", delim = ",")
+vroom_write(x=plogrpcr_preds_no_c, file="plogrpcr_preds_no_c_no_step_other.csv", delim = ",")
+
+#################################################################
+#################################################################
+# MODEL STACKING:                     ###########################
+# PENALIZED LOGISTIC REGRESSION W PCR ###########################
+# CLASSIFICATION FOREST W 5 LEVELS    ###########################
+#################################################################
+#################################################################
+
+# DATA CLEANING -------------------------------------------------
+
+# Load Libraries
+library(vroom)
+library(tidymodels)
+library(tidyverse)
+library(embed)
+library(lme4)
+library(stacks)
+
+# Load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
+
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
+# Create Recipe
+stack1_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+  # Vroom loads in data w numbers as numeric; turn all of these features into factors
+  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+  # Target encoding for all nominal predictors
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+  # Normalize
+  step_normalize(all_predictors()) %>%
+  # PCR
+  step_pca(all_predictors(), threshold = .94)
+
+# Prep, Bake, and View Recipe
+stack1_prep <- prep(stack1_rec)
+bake(stack1_prep, employee_train) %>%
+  slice(1:10)
+
+# CROSS VALIDATION -------------------------------------------------
+stack1_folds <- vfold_cv(employee_train, 
+                  v = 5, 
+                  repeats = 1) # Split data for CV
+
+stack1_untuned_model <- control_stack_grid() # Control grid for tuning over a grid
+stack1_tuned_model <- control_stack_resamples() # Control grid for models we aren't tuning
+
+# PENALIZED LOGISTIC REGRESSION MODELING ------------------------------------
+
+# Create penalized logistic regression model
+plogrpcr_mod <- logistic_reg(mixture = tune(),
+                          penalty = tune()) %>%
+  set_engine("glmnet")
+
+# Create logistic regression workflow
+plogrpcr_wf <- workflow() %>%
+  add_recipe(stack1_rec) %>%
+  add_model(plogrpcr_mod)
+
+# Grid of values to tune over
+plogrpcr_tg <- grid_regular(penalty(),
+                         mixture(),
+                         levels = 5)
+
+# Tune model
+plogrpcr_fit <- plogrpcr_wf %>%
+  tune_grid(resamples = stack1_folds,
+            grid = plogrpcr_tg,
+            metrics = metric_set(roc_auc),
+            control = stack1_untuned_model)
+
+# CLASSIFICATION FOREST MODELING ------------------------------------
+
+# Create classification forest model
+ctree_mod <- rand_forest(mtry = tune(),
+                         min_n = tune(),
+                         trees = 750) %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
+
+# Create classification forest workflow
+ctree_wf <- workflow() %>%
+  add_recipe(stack1_rec) %>%
+  add_model(ctree_mod)
+
+# Grid of values to tune over
+ctree_tg <- grid_regular(mtry(range = c(1, 9)),
+                         min_n(),
+                         levels = 5)
+
+# Run cross-validation
+ctree_fit <- ctree_wf %>%
+  tune_grid(resamples = stack1_folds,
+            grid = ctree_tg,
+            metrics = metric_set(roc_auc),
+            control = stack1_untuned_model)
+
+# STACKED MODEL ----------------------------------------------
+
+# Specify models to include
+stack1_stack <- stacks() %>%
+  add_candidates(plogrpcr_fit) %>%
+  add_candidates(ctree_fit)
+
+# Fit model w/ LASSO penalized regression meta-learner
+stacked_model1 <- stack1_stack %>%
+  blend_predictions() %>%
+  fit_members()
+
+# PREDICTIONS ---------------------------------------------------
+
+# Predict without a classification cutoff--just the raw probabilities
+stacked1_preds <- predict(stacked_model1,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=stacked1_preds, file="stacked1_preds.csv", delim = ",")
 
 ########################################################################
 ########################################################################
