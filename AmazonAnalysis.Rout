@@ -785,7 +785,7 @@ Type 'q()' to quit R.
 ✖ dplyr::lag()      masks stats::lag()
 ✖ yardstick::spec() masks vroom::spec()
 ✖ recipes::step()   masks stats::step()
-• Learn how to get started at https://www.tidymodels.org/start/
+• Dig deeper into tidy modeling with R at https://www.tmwr.org
 > library(tidyverse)
 ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
 ✔ forcats   1.0.0     ✔ readr     2.1.4
@@ -859,48 +859,3 @@ dbl (10): id, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTNAME,...
 > 
 > # Prep, Bake, and View Recipe
 > ctree_prep <- prep(ctree_rec)
-> bake(ctree_prep, employee_train) %>%
-+   slice(1:10)
-# A tibble: 10 × 10
-   RESOURCE MGR_ID ROLE_ROLLUP_1 ROLE_ROLLUP_2 ROLE_DEPTNAME ROLE_TITLE
-      <dbl>  <dbl>         <dbl>         <dbl>         <dbl>      <dbl>
- 1    -3.65 -6.28          -2.93         -3.08         -3.16      -3.40
- 2    -3.40 -5.62          -2.93         -3.44         -2.17      -3.29
- 3    -3.60 -5.40          -2.48         -2.47         -2.50      -2.09
- 4    -3.54 -6.34          -2.93         -3.44         -4.27      -2.45
- 5    -3.85 -5.59          -2.63         -2.05         -1.29      -2.00
- 6    -2.28 -0.949         -2.71         -2.68         -2.12      -2.52
- 7    -3.03 -5.84          -2.93         -3.44         -3.98      -2.58
- 8    -4.10 -5.51          -2.93         -2.56         -3.26      -2.69
- 9    -3.70 -6.00          -2.93         -3.29         -3.07      -2.37
-10    -4.00 -5.32          -1.52         -1.51         -2.71      -2.09
-# ℹ 4 more variables: ROLE_FAMILY_DESC <dbl>, ROLE_FAMILY <dbl>,
-#   ROLE_CODE <dbl>, ACTION <fct>
-> 
-> # MODELING ------------------------------------------------------
-> 
-> # Create classification forest model
-> ctree_mod <- rand_forest(mtry = tune(),
-+                          min_n = tune(),
-+                          trees = 1000) %>%
-+   set_engine("ranger") %>%
-+   set_mode("classification")
-> 
-> # Create classification forest workflow
-> ctree_wf <- workflow() %>%
-+   add_recipe(ctree_rec) %>%
-+   add_model(ctree_mod)
-> 
-> # Grid of values to tune over
-> ctree_tg <- grid_regular(mtry(range = c(1, 9)),
-+                          min_n(),
-+                          levels = 15)
-> 
-> # Split data for cross-validation (CV)
-> ctree_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
-> 
-> # Run cross-validation
-> ctree_cv_results <- ctree_wf %>%
-+   tune_grid(resamples = ctree_folds,
-+             grid = ctree_tg,
-+             metrics = metric_set(roc_auc))
