@@ -31,6 +31,7 @@
 # install.packages('kknn')
 # install.packages('stacks')
 # install.packages('kernlab')
+# install.packages('themis')
 
 # Load Libraries
 # library(doParallel) # Parallel Computing
@@ -48,6 +49,7 @@
 # library(kknn) # K nearest neighbors
 # library(stacks) # Model Stacking
 # library(kernlab) # SVMS
+# library(themis) # Balancing Data - SMOTE
 
 ########################################################################
 ########################################################################
@@ -1215,6 +1217,218 @@
 # 
 # # Create a CSV with the predictions
 # vroom_write(x=svms_radial_preds, file="svms_radial_preds.csv", delim = ",")
+
+#################################################################
+#################################################################
+# BALANCING DATA - SMOTE - FOR ALL PREVIOUS MODELS ##############
+#################################################################
+#################################################################
+
+# Load Libraries
+library(vroom) # Loading data
+library(tidyverse) # General Use
+library(tidymodels) # General Modeling
+library(embed) # plogr modeling
+library(lme4) # plogr modeling
+library(naivebayes) # Naive Bayes modeling
+library(discrim) # Naive Bayes modeling
+library(kknn) # K nearest neighbors
+library(kernlab) # SVMS
+library(themis) # Balancing Data - SMOTE
+
+# Re-load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
+
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
+# Create Recipe
+smote_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+  # Vroom loads in data w numbers as numeric; turn all of these features into factors
+  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+  # Combine categories that occur less than .01% of the time into an "other" category
+  # step_other(all_nominal_predictors(), threshold = .0001) %>%
+  # Target encoding for all nominal predictors
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+  # Normalize Numeric Predictors
+  step_normalize(all_numeric_predictors()) %>%
+  # Use SMOTE to balance data with KNN for 5 nearest neighbors
+  # Alternatively, could have used step_upsample() or step_downsample
+  step_smote(all_outcomes(), neighbors = 5)
+
+# Prep, Bake, and View Recipe
+smote_prep <- prep(smote_rec)
+bake(smote_prep, employee_train) %>%
+  slice(1:10)
+
+# LOGISTIC REGRESSION ------------------------------------------------------
+
+# Create logistic regression model
+logr_mod <- logistic_reg() %>%
+  set_engine("glm")
+
+# Create and fit logistic regression workflow
+logr_wf <- workflow() %>%
+  add_recipe(smote_rec) %>%
+  add_model(logr_mod) %>%
+  fit(data = employee_train)
+
+# Predict without a classification cutoff--just the raw probabilities
+logr_preds <- predict(logr_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=logr_preds, file="logr_preds_smote.csv", delim = ",")
+
+# PENALIZED LOGISTIC REGRESSION --------------------------------------------------
+
+# Create penalized logistic regression model
+plogr_mod <- logistic_reg(mixture = tune(),
+                          penalty = tune()) %>%
+  set_engine("glmnet")
+
+# Create logistic regression workflow
+plogr_wf <- workflow() %>%
+  add_recipe(smote_rec) %>%
+  add_model(plogr_mod)
+
+# Grid of values to tune over
+plogr_tg <- grid_regular(penalty(),
+                         mixture(),
+                         levels = 5)
+
+# Split data for cross-validation (CV)
+plogr_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+plogr_cv_results <- plogr_wf %>%
+  tune_grid(resamples = plogr_folds,
+            grid = plogr_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+plogr_best_tune <- plogr_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+plogr_final_wf <- plogr_wf %>%
+  finalize_workflow(plogr_best_tune) %>%
+  fit(data = employee_train)
+
+# Predict without a classification cutoff--just the raw probabilities
+plogr_preds <- predict(plogr_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=plogr_preds, file="plogr_preds_smote.csv", delim = ",")
+
+
+# RANDOM FOREST ------------------------------------------------------
+
+# Create classification forest model
+ctree_mod <- rand_forest(mtry = tune(),
+                         min_n = tune(),
+                         trees = 750) %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
+
+# Create classification forest workflow
+ctree_wf <- workflow() %>%
+  add_recipe(smote_rec) %>%
+  add_model(ctree_mod)
+
+# Grid of values to tune over
+ctree_tg <- grid_regular(mtry(range = c(1, 9)),
+                         min_n(),
+                         levels = 5)
+
+# Split data for cross-validation (CV)
+ctree_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+ctree_cv_results <- ctree_wf %>%
+  tune_grid(resamples = ctree_folds,
+            grid = ctree_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+ctree_best_tune <- ctree_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+ctree_final_wf <- ctree_wf %>%
+  finalize_workflow(ctree_best_tune) %>%
+  fit(data = employee_train)
+
+# Predict without a classification cutoff--just the raw probabilities
+ctree_preds <- predict(ctree_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=ctree_preds, file="ctree_preds_smote.csv", delim = ",")
+
+# SVMS Linear ------------------------------------------------------
+
+# Create SVMS model
+svms_linear_mod <- svm_linear(cost = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("kernlab")
+
+
+# Create SVM workflow
+svms_linear_wf <- workflow() %>%
+  add_recipe(smote_rec) %>%
+  add_model(svms_linear_mod)
+
+# Grid of values to tune over
+svms_linear_tg <- grid_regular(cost(),
+                               levels = 5)
+
+# Split data for cross-validation (CV)
+svms_linear_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+svms_linear_cv_results <- svms_linear_wf %>%
+  tune_grid(resamples = svms_linear_folds,
+            grid = svms_linear_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+svms_linear_best_tune <- svms_linear_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+svms_linear_final_wf <- svms_linear_wf %>%
+  finalize_workflow(svms_linear_best_tune) %>%
+  fit(data = employee_train)
+
+# Make predictions
+svms_linear_preds <- predict(svms_linear_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=svms_linear_preds, file="svms_linear_preds_smote.csv", delim = ",")
 
 ########################################################################
 ########################################################################
