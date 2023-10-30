@@ -1224,42 +1224,42 @@
 #################################################################
 #################################################################
 
-# Load Libraries
-library(vroom) # Loading data
-library(tidyverse) # General Use
-library(tidymodels) # General Modeling
-library(embed) # plogr modeling
-library(lme4) # plogr modeling
-library(naivebayes) # Naive Bayes modeling
-library(discrim) # Naive Bayes modeling
-library(kknn) # K nearest neighbors
-library(kernlab) # SVMS
-library(themis) # Balancing Data - SMOTE
-
-# Re-load Data
-employee_train <- vroom("train.csv")
-employee_test <- vroom("test.csv")
-
-# Change ACTION to factor before the recipe, as it isn't included in the test data set
-employee_train$ACTION <- as.factor(employee_train$ACTION)
-
-# Create Recipe
-smote_rec <- recipe(ACTION ~ ., data = employee_train) %>%
-  # Vroom loads in data w numbers as numeric; turn all of these features into factors
-  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
-  # Combine categories that occur less than .01% of the time into an "other" category
-  # step_other(all_nominal_predictors(), threshold = .0001) %>%
-  # Target encoding for all nominal predictors
-  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
-  # Normalize Numeric Predictors
-  step_normalize(all_numeric_predictors()) %>%
-  # Use SMOTE to balance data with KNN for 5 nearest neighbors
-  # Alternatively, could have used step_upsample() or step_downsample
-  step_smote(all_outcomes(), neighbors = 5)
-
-# Prep, Bake, and View Recipe
-smote_prep <- prep(smote_rec)
-#   slice(1:10)
+# # Load Libraries
+# library(vroom) # Loading data
+# library(tidyverse) # General Use
+# library(tidymodels) # General Modeling
+# library(embed) # plogr modeling
+# library(lme4) # plogr modeling
+# library(naivebayes) # Naive Bayes modeling
+# library(discrim) # Naive Bayes modeling
+# library(kknn) # K nearest neighbors
+# library(kernlab) # SVMS
+# library(themis) # Balancing Data - SMOTE
+# 
+# # Re-load Data
+# employee_train <- vroom("train.csv")
+# employee_test <- vroom("test.csv")
+# 
+# # Change ACTION to factor before the recipe, as it isn't included in the test data set
+# employee_train$ACTION <- as.factor(employee_train$ACTION)
+# 
+# # Create Recipe
+# smote_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+#   # Vroom loads in data w numbers as numeric; turn all of these features into factors
+#   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+#   # Combine categories that occur less than .01% of the time into an "other" category
+#   # step_other(all_nominal_predictors(), threshold = .0001) %>%
+#   # Target encoding for all nominal predictors
+#   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+#   # Normalize Numeric Predictors
+#   step_normalize(all_numeric_predictors()) %>%
+#   # Use SMOTE to balance data with KNN for 5 nearest neighbors
+#   # Alternatively, could have used step_upsample() or step_downsample
+#   step_smote(all_outcomes(), neighbors = 5)
+# 
+# # Prep, Bake, and View Recipe
+# smote_prep <- prep(smote_rec)
+# #   slice(1:10)
 
 # # LOGISTIC REGRESSION ------------------------------------------------------
 # 
@@ -1382,51 +1382,51 @@ smote_prep <- prep(smote_rec)
 # # Create a CSV with the predictions
 # vroom_write(x=ctree_preds, file="ctree_preds_smote.csv", delim = ",")
 
-# SVMS Linear ------------------------------------------------------
-
-# Create SVMS model
-svms_linear_mod <- svm_linear(cost = tune()) %>%
-  set_mode("classification") %>%
-  set_engine("kernlab")
-
-# Create SVM workflow
-svms_linear_wf <- workflow() %>%
-  add_recipe(smote_rec) %>%
-  add_model(svms_linear_mod)
-
-# Grid of values to tune over
-svms_linear_tg <- grid_regular(cost(),
-                               levels = 5)
-
-# Split data for cross-validation (CV)
-svms_linear_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
-
-# Run cross-validation
-svms_linear_cv_results <- svms_linear_wf %>%
-  tune_grid(resamples = svms_linear_folds,
-            grid = svms_linear_tg,
-            metrics = metric_set(roc_auc))
-
-# Find best tuning parameters
-svms_linear_best_tune <- svms_linear_cv_results %>%
-  select_best("roc_auc")
-
-# Finalize workflow and fit it
-svms_linear_final_wf <- svms_linear_wf %>%
-  finalize_workflow(svms_linear_best_tune) %>%
-  fit(data = employee_train)
-
-# Make predictions
-svms_linear_preds <- predict(svms_linear_final_wf,
-                     new_data = employee_test,
-                     type = "prob") %>%
-  bind_cols(employee_test$id, .) %>%
-  rename(Id = ...1) %>%
-  rename(Action = .pred_1) %>%
-  select(Id, Action)
-
-# Create a CSV with the predictions
-vroom_write(x=svms_linear_preds, file="svms_linear_preds_smote.csv", delim = ",")
+# # SVMS Linear ------------------------------------------------------
+# 
+# # Create SVMS model
+# svms_linear_mod <- svm_linear(cost = tune()) %>%
+#   set_mode("classification") %>%
+#   set_engine("kernlab")
+# 
+# # Create SVM workflow
+# svms_linear_wf <- workflow() %>%
+#   add_recipe(smote_rec) %>%
+#   add_model(svms_linear_mod)
+# 
+# # Grid of values to tune over
+# svms_linear_tg <- grid_regular(cost(),
+#                                levels = 5)
+# 
+# # Split data for cross-validation (CV)
+# svms_linear_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+# 
+# # Run cross-validation
+# svms_linear_cv_results <- svms_linear_wf %>%
+#   tune_grid(resamples = svms_linear_folds,
+#             grid = svms_linear_tg,
+#             metrics = metric_set(roc_auc))
+# 
+# # Find best tuning parameters
+# svms_linear_best_tune <- svms_linear_cv_results %>%
+#   select_best("roc_auc")
+# 
+# # Finalize workflow and fit it
+# svms_linear_final_wf <- svms_linear_wf %>%
+#   finalize_workflow(svms_linear_best_tune) %>%
+#   fit(data = employee_train)
+# 
+# # Make predictions
+# svms_linear_preds <- predict(svms_linear_final_wf,
+#                      new_data = employee_test,
+#                      type = "prob") %>%
+#   bind_cols(employee_test$id, .) %>%
+#   rename(Id = ...1) %>%
+#   rename(Action = .pred_1) %>%
+#   select(Id, Action)
+# 
+# # Create a CSV with the predictions
+# vroom_write(x=svms_linear_preds, file="svms_linear_preds_smote.csv", delim = ",")
 
 ########################################################################
 ########################################################################
@@ -1436,3 +1436,101 @@ vroom_write(x=svms_linear_preds, file="svms_linear_preds_smote.csv", delim = ","
 #############################
 ########################################################################
 ########################################################################
+
+
+
+
+
+
+
+#################################################################
+#################################################################
+# MEGA FOREST                                      ##############
+#################################################################
+#################################################################
+
+# Load Libraries
+library(vroom) # Loading data
+library(tidyverse) # General Use
+library(tidymodels) # General Modeling
+library(embed) # plogr modeling
+library(lme4) # plogr modeling
+library(naivebayes) # Naive Bayes modeling
+library(discrim) # Naive Bayes modeling
+library(kknn) # K nearest neighbors
+library(kernlab) # SVMS
+library(themis) # Balancing Data - SMOTE
+library(discrim) # PCA
+
+# Re-load Data
+employee_train <- vroom("train.csv")
+employee_test <- vroom("test.csv")
+
+# Change ACTION to factor before the recipe, as it isn't included in the test data set
+employee_train$ACTION <- as.factor(employee_train$ACTION)
+
+# Create Recipe
+rf_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+  # Vroom loads in data w numbers as numeric; turn all of these features into factors
+  step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+  # Target encoding for all nominal predictors
+  step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+  # Normalize Numeric Predictors
+  step_normalize(all_numeric_predictors()) %>%
+  # Use SMOTE to balance data with KNN for 5 nearest neighbors
+  step_smote(all_outcomes(), neighbors = 5)
+
+# Prep, Bake, and View Recipe
+rf_prep <- prep(rf_rec)
+
+# MODELING ------------------------------------------------------
+
+# Create random forest model
+rf_mod <- rand_forest(mtry = tune(),
+                         min_n = tune(),
+                         trees = 1000) %>%
+  set_engine("ranger") %>%
+  set_mode("classification")
+
+# Create classification forest workflow
+rf_wf <- workflow() %>%
+  add_recipe(rf_rec) %>%
+  add_model(rf_mod)
+
+# Grid of values to tune over
+rf_tg <- grid_regular(mtry(range = c(1, 9)),
+                         min_n(),
+                         levels = 20)
+
+# Split data for cross-validation (CV)
+rf_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+
+# Run cross-validation
+rf_cv_results <- rf_wf %>%
+  tune_grid(resamples = rf_folds,
+            grid = rf_tg,
+            metrics = metric_set(roc_auc))
+
+# Find best tuning parameters
+rf_best_tune <- rf_cv_results %>%
+  select_best("roc_auc")
+
+# Finalize workflow and fit it
+rf_final_wf <- rf_wf %>%
+  finalize_workflow(rf_best_tune) %>%
+  fit(data = employee_train)
+
+# PREDICTIONS ---------------------------------------------------
+
+# Predict without a classification cutoff--just the raw probabilities
+rf_preds <- predict(rf_final_wf,
+                     new_data = employee_test,
+                     type = "prob") %>%
+  bind_cols(employee_test$id, .) %>%
+  rename(Id = ...1) %>%
+  rename(Action = .pred_1) %>%
+  select(Id, Action)
+
+# Create a CSV with the predictions
+vroom_write(x=rf_preds, file="rf_preds_20levels_SMOTE.csv", delim = ",")
+
