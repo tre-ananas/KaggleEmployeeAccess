@@ -1243,133 +1243,42 @@ Type 'q()' to quit R.
 > #################################################################
 > #################################################################
 > 
-> # Load Libraries
-> library(vroom) # Loading data
-> library(tidyverse) # General Use
-── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.3     ✔ readr     2.1.4
-✔ forcats   1.0.0     ✔ stringr   1.5.0
-✔ ggplot2   3.4.3     ✔ tibble    3.2.1
-✔ lubridate 1.9.3     ✔ tidyr     1.3.0
-✔ purrr     1.0.2     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ readr::col_character()   masks vroom::col_character()
-✖ readr::col_date()        masks vroom::col_date()
-✖ readr::col_datetime()    masks vroom::col_datetime()
-✖ readr::col_double()      masks vroom::col_double()
-✖ readr::col_factor()      masks vroom::col_factor()
-✖ readr::col_guess()       masks vroom::col_guess()
-✖ readr::col_integer()     masks vroom::col_integer()
-✖ readr::col_logical()     masks vroom::col_logical()
-✖ readr::col_number()      masks vroom::col_number()
-✖ readr::col_skip()        masks vroom::col_skip()
-✖ readr::col_time()        masks vroom::col_time()
-✖ readr::cols()            masks vroom::cols()
-✖ readr::date_names_lang() masks vroom::date_names_lang()
-✖ readr::default_locale()  masks vroom::default_locale()
-✖ dplyr::filter()          masks stats::filter()
-✖ readr::fwf_cols()        masks vroom::fwf_cols()
-✖ readr::fwf_empty()       masks vroom::fwf_empty()
-✖ readr::fwf_positions()   masks vroom::fwf_positions()
-✖ readr::fwf_widths()      masks vroom::fwf_widths()
-✖ dplyr::lag()             masks stats::lag()
-✖ readr::locale()          masks vroom::locale()
-✖ readr::output_column()   masks vroom::output_column()
-✖ readr::problems()        masks vroom::problems()
-ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
-> library(tidymodels) # General Modeling
-── Attaching packages ────────────────────────────────────── tidymodels 1.1.1 ──
-✔ broom        1.0.5     ✔ rsample      1.2.0
-✔ dials        1.2.0     ✔ tune         1.1.2
-✔ infer        1.0.5     ✔ workflows    1.1.3
-✔ modeldata    1.2.0     ✔ workflowsets 1.0.1
-✔ parsnip      1.1.1     ✔ yardstick    1.2.0
-✔ recipes      1.0.8     
-── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
-✖ scales::discard() masks purrr::discard()
-✖ dplyr::filter()   masks stats::filter()
-✖ recipes::fixed()  masks stringr::fixed()
-✖ dplyr::lag()      masks stats::lag()
-✖ yardstick::spec() masks readr::spec(), vroom::spec()
-✖ recipes::step()   masks stats::step()
-• Search for functions across packages at https://www.tidymodels.org/find/
-> library(embed) # plogr modeling
-> library(lme4) # plogr modeling
-Loading required package: Matrix
-
-Attaching package: ‘Matrix’
-
-The following objects are masked from ‘package:tidyr’:
-
-    expand, pack, unpack
-
-> library(naivebayes) # Naive Bayes modeling
-naivebayes 0.9.7 loaded
-> library(discrim) # Naive Bayes modeling
-
-Attaching package: ‘discrim’
-
-The following object is masked from ‘package:dials’:
-
-    smoothness
-
-> library(kknn) # K nearest neighbors
-> library(kernlab) # SVMS
-
-Attaching package: ‘kernlab’
-
-The following object is masked from ‘package:scales’:
-
-    alpha
-
-The following object is masked from ‘package:purrr’:
-
-    cross
-
-The following object is masked from ‘package:ggplot2’:
-
-    alpha
-
-> library(themis) # Balancing Data - SMOTE
-> 
-> # Re-load Data
-> employee_train <- vroom("train.csv")
-Rows: 32769 Columns: 10
-── Column specification ────────────────────────────────────────────────────────
-Delimiter: ","
-dbl (10): ACTION, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTN...
-
-ℹ Use `spec()` to retrieve the full column specification for this data.
-ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-> employee_test <- vroom("test.csv")
-Rows: 58921 Columns: 10
-── Column specification ────────────────────────────────────────────────────────
-Delimiter: ","
-dbl (10): id, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTNAME,...
-
-ℹ Use `spec()` to retrieve the full column specification for this data.
-ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-> 
-> # Change ACTION to factor before the recipe, as it isn't included in the test data set
-> employee_train$ACTION <- as.factor(employee_train$ACTION)
-> 
-> # Create Recipe
-> smote_rec <- recipe(ACTION ~ ., data = employee_train) %>%
-+   # Vroom loads in data w numbers as numeric; turn all of these features into factors
-+   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
-+   # Combine categories that occur less than .01% of the time into an "other" category
-+   # step_other(all_nominal_predictors(), threshold = .0001) %>%
-+   # Target encoding for all nominal predictors
-+   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
-+   # Normalize Numeric Predictors
-+   step_normalize(all_numeric_predictors()) %>%
-+   # Use SMOTE to balance data with KNN for 5 nearest neighbors
-+   # Alternatively, could have used step_upsample() or step_downsample
-+   step_smote(all_outcomes(), neighbors = 5)
-> 
-> # Prep, Bake, and View Recipe
-> smote_prep <- prep(smote_rec)
-> #   slice(1:10)
+> # # Load Libraries
+> # library(vroom) # Loading data
+> # library(tidyverse) # General Use
+> # library(tidymodels) # General Modeling
+> # library(embed) # plogr modeling
+> # library(lme4) # plogr modeling
+> # library(naivebayes) # Naive Bayes modeling
+> # library(discrim) # Naive Bayes modeling
+> # library(kknn) # K nearest neighbors
+> # library(kernlab) # SVMS
+> # library(themis) # Balancing Data - SMOTE
+> # 
+> # # Re-load Data
+> # employee_train <- vroom("train.csv")
+> # employee_test <- vroom("test.csv")
+> # 
+> # # Change ACTION to factor before the recipe, as it isn't included in the test data set
+> # employee_train$ACTION <- as.factor(employee_train$ACTION)
+> # 
+> # # Create Recipe
+> # smote_rec <- recipe(ACTION ~ ., data = employee_train) %>%
+> #   # Vroom loads in data w numbers as numeric; turn all of these features into factors
+> #   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
+> #   # Combine categories that occur less than .01% of the time into an "other" category
+> #   # step_other(all_nominal_predictors(), threshold = .0001) %>%
+> #   # Target encoding for all nominal predictors
+> #   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
+> #   # Normalize Numeric Predictors
+> #   step_normalize(all_numeric_predictors()) %>%
+> #   # Use SMOTE to balance data with KNN for 5 nearest neighbors
+> #   # Alternatively, could have used step_upsample() or step_downsample
+> #   step_smote(all_outcomes(), neighbors = 5)
+> # 
+> # # Prep, Bake, and View Recipe
+> # smote_prep <- prep(smote_rec)
+> # #   slice(1:10)
 > 
 > # # LOGISTIC REGRESSION ------------------------------------------------------
 > # 
@@ -1492,27 +1401,222 @@ dbl (10): id, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTNAME,...
 > # # Create a CSV with the predictions
 > # vroom_write(x=ctree_preds, file="ctree_preds_smote.csv", delim = ",")
 > 
-> # SVMS Linear ------------------------------------------------------
+> # # SVMS Linear ------------------------------------------------------
+> # 
+> # # Create SVMS model
+> # svms_linear_mod <- svm_linear(cost = tune()) %>%
+> #   set_mode("classification") %>%
+> #   set_engine("kernlab")
+> # 
+> # # Create SVM workflow
+> # svms_linear_wf <- workflow() %>%
+> #   add_recipe(smote_rec) %>%
+> #   add_model(svms_linear_mod)
+> # 
+> # # Grid of values to tune over
+> # svms_linear_tg <- grid_regular(cost(),
+> #                                levels = 5)
+> # 
+> # # Split data for cross-validation (CV)
+> # svms_linear_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+> # 
+> # # Run cross-validation
+> # svms_linear_cv_results <- svms_linear_wf %>%
+> #   tune_grid(resamples = svms_linear_folds,
+> #             grid = svms_linear_tg,
+> #             metrics = metric_set(roc_auc))
+> # 
+> # # Find best tuning parameters
+> # svms_linear_best_tune <- svms_linear_cv_results %>%
+> #   select_best("roc_auc")
+> # 
+> # # Finalize workflow and fit it
+> # svms_linear_final_wf <- svms_linear_wf %>%
+> #   finalize_workflow(svms_linear_best_tune) %>%
+> #   fit(data = employee_train)
+> # 
+> # # Make predictions
+> # svms_linear_preds <- predict(svms_linear_final_wf,
+> #                      new_data = employee_test,
+> #                      type = "prob") %>%
+> #   bind_cols(employee_test$id, .) %>%
+> #   rename(Id = ...1) %>%
+> #   rename(Action = .pred_1) %>%
+> #   select(Id, Action)
+> # 
+> # # Create a CSV with the predictions
+> # vroom_write(x=svms_linear_preds, file="svms_linear_preds_smote.csv", delim = ",")
 > 
-> # Create SVMS model
-> svms_linear_mod <- svm_linear(cost = tune()) %>%
-+   set_mode("classification") %>%
-+   set_engine("kernlab")
+> ########################################################################
+> ########################################################################
+> #############################
+> # End run in parallel
+> # stopCluster(cl)
+> #############################
+> ########################################################################
+> ########################################################################
 > 
-> # Create SVM workflow
-> svms_linear_wf <- workflow() %>%
-+   add_recipe(smote_rec) %>%
-+   add_model(svms_linear_mod)
+> 
+> 
+> 
+> 
+> 
+> 
+> #################################################################
+> #################################################################
+> # MEGA FOREST                                      ##############
+> #################################################################
+> #################################################################
+> 
+> # Load Libraries
+> library(vroom) # Loading data
+> library(tidyverse) # General Use
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.3     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.3     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.0
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ readr::col_character()   masks vroom::col_character()
+✖ readr::col_date()        masks vroom::col_date()
+✖ readr::col_datetime()    masks vroom::col_datetime()
+✖ readr::col_double()      masks vroom::col_double()
+✖ readr::col_factor()      masks vroom::col_factor()
+✖ readr::col_guess()       masks vroom::col_guess()
+✖ readr::col_integer()     masks vroom::col_integer()
+✖ readr::col_logical()     masks vroom::col_logical()
+✖ readr::col_number()      masks vroom::col_number()
+✖ readr::col_skip()        masks vroom::col_skip()
+✖ readr::col_time()        masks vroom::col_time()
+✖ readr::cols()            masks vroom::cols()
+✖ readr::date_names_lang() masks vroom::date_names_lang()
+✖ readr::default_locale()  masks vroom::default_locale()
+✖ dplyr::filter()          masks stats::filter()
+✖ readr::fwf_cols()        masks vroom::fwf_cols()
+✖ readr::fwf_empty()       masks vroom::fwf_empty()
+✖ readr::fwf_positions()   masks vroom::fwf_positions()
+✖ readr::fwf_widths()      masks vroom::fwf_widths()
+✖ dplyr::lag()             masks stats::lag()
+✖ readr::locale()          masks vroom::locale()
+✖ readr::output_column()   masks vroom::output_column()
+✖ readr::problems()        masks vroom::problems()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(tidymodels) # General Modeling
+── Attaching packages ────────────────────────────────────── tidymodels 1.1.1 ──
+✔ broom        1.0.5     ✔ rsample      1.2.0
+✔ dials        1.2.0     ✔ tune         1.1.2
+✔ infer        1.0.5     ✔ workflows    1.1.3
+✔ modeldata    1.2.0     ✔ workflowsets 1.0.1
+✔ parsnip      1.1.1     ✔ yardstick    1.2.0
+✔ recipes      1.0.8     
+── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
+✖ scales::discard() masks purrr::discard()
+✖ dplyr::filter()   masks stats::filter()
+✖ recipes::fixed()  masks stringr::fixed()
+✖ dplyr::lag()      masks stats::lag()
+✖ yardstick::spec() masks readr::spec(), vroom::spec()
+✖ recipes::step()   masks stats::step()
+• Dig deeper into tidy modeling with R at https://www.tmwr.org
+> library(embed) # plogr modeling
+> library(lme4) # plogr modeling
+Loading required package: Matrix
+
+Attaching package: ‘Matrix’
+
+The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack
+
+> library(naivebayes) # Naive Bayes modeling
+naivebayes 0.9.7 loaded
+> library(discrim) # Naive Bayes modeling
+
+Attaching package: ‘discrim’
+
+The following object is masked from ‘package:dials’:
+
+    smoothness
+
+> library(kknn) # K nearest neighbors
+> library(kernlab) # SVMS
+
+Attaching package: ‘kernlab’
+
+The following object is masked from ‘package:scales’:
+
+    alpha
+
+The following object is masked from ‘package:purrr’:
+
+    cross
+
+The following object is masked from ‘package:ggplot2’:
+
+    alpha
+
+> library(themis) # Balancing Data - SMOTE
+> library(discrim) # PCA
+> 
+> # Re-load Data
+> employee_train <- vroom("train.csv")
+Rows: 32769 Columns: 10
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+dbl (10): ACTION, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTN...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> employee_test <- vroom("test.csv")
+Rows: 58921 Columns: 10
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+dbl (10): id, RESOURCE, MGR_ID, ROLE_ROLLUP_1, ROLE_ROLLUP_2, ROLE_DEPTNAME,...
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> 
+> # Change ACTION to factor before the recipe, as it isn't included in the test data set
+> employee_train$ACTION <- as.factor(employee_train$ACTION)
+> 
+> # Create Recipe
+> rf_rec <- recipe(ACTION ~ ., data = employee_train) %>%
++   # Vroom loads in data w numbers as numeric; turn all of these features into factors
++   step_mutate_at(all_numeric_predictors(), fn = factor) %>%
++   # Target encoding for all nominal predictors
++   step_lencode_mixed(all_nominal_predictors(), outcome = vars(ACTION)) %>%
++   # Normalize Numeric Predictors
++   step_normalize(all_numeric_predictors()) %>%
++   # Use SMOTE to balance data with KNN for 5 nearest neighbors
++   step_smote(all_outcomes(), neighbors = 5)
+> 
+> # Prep, Bake, and View Recipe
+> rf_prep <- prep(rf_rec)
+> 
+> # MODELING ------------------------------------------------------
+> 
+> # Create random forest model
+> rf_mod <- rand_forest(mtry = tune(),
++                          min_n = tune(),
++                          trees = 1000) %>%
++   set_engine("ranger") %>%
++   set_mode("classification")
+> 
+> # Create classification forest workflow
+> rf_wf <- workflow() %>%
++   add_recipe(rf_rec) %>%
++   add_model(rf_mod)
 > 
 > # Grid of values to tune over
-> svms_linear_tg <- grid_regular(cost(),
-+                                levels = 5)
+> rf_tg <- grid_regular(mtry(range = c(1, 9)),
++                          min_n(),
++                          levels = 20)
 > 
 > # Split data for cross-validation (CV)
-> svms_linear_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
+> rf_folds <- vfold_cv(employee_train, v = 5, repeats = 1)
 > 
 > # Run cross-validation
-> svms_linear_cv_results <- svms_linear_wf %>%
-+   tune_grid(resamples = svms_linear_folds,
-+             grid = svms_linear_tg,
+> rf_cv_results <- rf_wf %>%
++   tune_grid(resamples = rf_folds,
++             grid = rf_tg,
 +             metrics = metric_set(roc_auc))
