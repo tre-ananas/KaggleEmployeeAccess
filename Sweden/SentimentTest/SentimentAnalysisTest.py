@@ -47,7 +47,6 @@ if len(sys.argv) != 3:
 # Get input and output file names from command-line arguments
 input_file_name = sys.argv[1]
 output_file_name = sys.argv[2]
-backup_file_name = sys.argv[3]
 
 # Load Data
 try:
@@ -282,10 +281,6 @@ processed_data = pd.DataFrame({
     'Content Page': unprocessed_data['Content Page'],
     'PDF Link': unprocessed_data['PDF Link']
 })
-
-processed_data.to_csv(backup_file_name, index=True)
-
-print(f"Backup has been saved as {backup_file_name}")
 
 # STEP 6: CLASSIFY ARTICLES AS A WHOLE WITH NO STOPWORDS
 
